@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vacation Timeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f7f8fc; color: #1a1d2e; font-family: 'Inter', sans-serif; font-size: 13px; }
+
+  /* HEADER */
+  header {
+    background: #fff;
+    border-bottom: 1px solid #e4e7f0;
+    padding: 18px 28px;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  header h1 { font-size: 18px; font-weight: 700; color: #1a1d2e; letter-spacing: -.01em; }
+  header .sub { font-size: 11px; color: #9098b8; margin-top: 2px; }
+  .pill { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+  #status-bar { display:flex; gap:10px; flex-wrap:wrap; margin-left:auto; }
+
+  /* TOOLBAR */
+  .toolbar {
+    background: #fff;
+    border-bottom: 1px solid #e4e7f0;
+    padding: 10px 28px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .toolbar label { font-size: 11px; color: #9098b8; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+  select, input[type=text] {
+    background: #f7f8fc; border: 1px solid #e4e7f0; color: #1a1d2e;
+    font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+    padding: 5px 10px; border-radius: 6px; outline: none;
+    transition: border-color .15s;
+  }
+  select:focus, input:focus { border-color: #4f7ef8; }
+  .sep { width:1px; height:20px; background:#e4e7f0; margin:0 4px; }
+
+  /* LEGEND */
+  .legend {
+    background: #f7f8fc;
+    border-bottom: 1px solid #e4e7f0;
+    padding: 7px 28px;
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  }
+  .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:#6b7494; font-weight:500; }
+  .leg-dot { width:10px; height:10px; border-radius:3px; }
+
+  /* MAIN */
+  .main { padding: 20px 28px 60px; }
+
+  /* TEAM */
+  .team-block { margin-bottom: 24px; }
+  .team-label {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .team-badge {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 10px;
+    border-radius: 5px; color: #fff;
+  }
+  .agent-count { font-size: 11px; color: #9098b8; }
+
+  /* TIMELINE TABLE */
+  .tl-wrap {
+    background: #fff;
+    border: 1px solid #e4e7f0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .tl-scroll { overflow-x: auto; }
+
+  /* TOOLTIP */
+  #tt {
+    position: fixed; z-index: 999;
+    background: #fff; border: 1px solid #e4e7f0;
+    border-radius: 10px; padding: 12px 15px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12);
+    font-size: 12px; pointer-events: none;
+    opacity: 0; transition: opacity .1s;
+    max-width: 240px;
+  }
+  #tt.on { opacity: 1; }
+  #tt .r { display:flex; justify-content:space-between; gap:14px; margin-bottom:4px; }
+  #tt .l { color:#9098b8; }
+  #tt .v { font-weight:600; color:#1a1d2e; }
+
+  /* LOADING */
+  #loading {
+    position: fixed; inset: 0; background: rgba(247,248,252,.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; font-size: 14px; color: #4f7ef8; font-weight: 600;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Vacation Timeline</h1>
+    <div class="sub" id="last-update">Loading data…</div>
+  </div>
+  <div id="status-bar"></div>
+</header>
+
+<div class="toolbar">
+  <label>Team</label>
+  <select id="f-team" onchange="render()"><option value="">All</option></select>
+  <div class="sep"></div>
+  <label>Status</label>
+  <select id="f-status" onchange="render()">
+    <option value="">All</option>
+    <option value="Confirmed">Confirmed</option>
+    <option value="Waitlist">Waitlist</option>
+    <option value="Cancelled">Cancelled</option>
+    <option value="Cancellation Processed">Cancellation Processed</option>
+  </select>
+  <div class="sep"></div>
+  <label>Agent</label>
+  <input type="text" id="f-agent" placeholder="search…" oninput="render()" style="width:130px">
+  <div class="sep"></div>
+  <label>View</label>
+  <select id="f-months" onchange="render()">
+    <option value="3">3 months</option>
+    <option value="6" selected>6 months</option>
+    <option value="12">Full year</option>
+  </select>
+</div>
+
+<div class="legend">
+  <span style="font-size:10px;color:#9098b8;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Status:</span>
+  <div class="leg"><div class="leg-dot" style="background:#22c55e"></div>Confirmed</div>
+  <div class="leg"><div class="leg-dot" style="background:#f97316"></div>Waitlist</div>
+  <div class="leg"><div class="leg-dot" style="background:#ef4444"></div>Cancelled</div>
+  <div class="leg"><div class="leg-dot" style="background:#94a3b8"></div>Canc. Processed</div>
+  <div class="leg"><div class="leg-dot" style="background:#4f7ef8;border-radius:50%"></div>Today</div>
+</div>
+
+<div class="main" id="main"></div>
+<div id="tt"></div>
+<div id="loading">Loading data…</div>
+
+<script>
+// ─── CONFIG: pegá tu URL acá ────────────────────────────────────────────────
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQa2NKY_Iu1YvnWAPRVoFKVMOg9w90VT93g0oJ9gZk7U9Kz29jUbeZ5qrARPc9iCDynmbdMsbr6UacY/pub?gid=240308761&single=true&output=csv";
+const AUTO_REFRESH_MINUTES = 1; // recarga automática cada N minutos
+// ─────────────────────────────────────────────────────────────────────────────
+
+let DATA = [];
+
+const TEAM_COLORS = ['#4f7ef8','#9b5de5','#f72585','#06d6a0','#f97316','#00b4d8'];
+const STATUS_STYLE = {
+  'Confirmed':              {bg:'#f0fdf4', border:'#22c55e', color:'#15803d', dot:'#22c55e'},
+  'Waitlist':               {bg:'#fff7ed', border:'#f97316', color:'#c2410c', dot:'#f97316'},
+  'Cancelled':              {bg:'#fef2f2', border:'#ef4444', color:'#b91c1c', dot:'#ef4444', strike:true},
+  'Cancellation Processed': {bg:'#f8fafc', border:'#94a3b8', color:'#64748b', dot:'#94a3b8', strike:true},
+};
+
+// ─── FETCH ───────────────────────────────────────────────────────────────────
+async function tryFetch(url, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, {signal:ctrl.signal});
+    clearTimeout(t);
+    if (!r.ok) return null;
+    const txt = await r.text();
+    return txt && txt.trim().length > 10 ? txt : null;
+  } catch(e) { clearTimeout(t); return null; }
+}
+
+async function loadData(silent=false) {
+  if (!silent) showLoading(true);
+  const proxies = [
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(SHEET_CSV_URL),
+    'https://corsproxy.io/?' + encodeURIComponent(SHEET_CSV_URL),
+    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(SHEET_CSV_URL),
+  ];
+  let text = null;
+  for (const p of proxies) {
+    text = await tryFetch(p, 9000);
+    if (text) break;
+  }
+  showLoading(false);
+  if (!text) {
+    document.getElementById('last-update').textContent = 'Could not load data — check sheet URL in config';
+    return;
+  }
+  DATA = parseCSV(text);
+  // KEY = email: consolidate rows with same email+team+start+end into latest status
+  DATA = consolidateByEmail(DATA);
+  populateFilters();
+  render();
+  const now = new Date();
+  document.getElementById('last-update').textContent =
+    'Last updated: ' + now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) +
+    ' · ' + DATA.length + ' requests';
+}
+
+function showLoading(on) {
+  document.getElementById('loading').style.display = on ? 'flex' : 'none';
+}
+
+// ─── CSV PARSE ───────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const h = lines[0].split(',').map(s=>s.trim().replace(/^"|"$/g,'').toLowerCase());
+  const idx = {
+    agent:  h.findIndex(x=>x.includes('agent')),
+    email:  h.findIndex(x=>x.includes('email')),
+    team:   h.findIndex(x=>x.includes('team')),
+    action: h.findIndex(x=>x.includes('action')),
+    start:  h.findIndex(x=>x.includes('start')),
+    end:    h.findIndex(x=>x.includes('end')),
+    status: h.findIndex(x=>x.includes('column')||x.includes('status')),
+  };
+  return lines.slice(1).map(line => {
+    const c = splitLine(line);
+    const g = i => i>=0 ? (c[i]||'').replace(/^"|"$/g,'').trim() : '';
+    return {
+      agent:  g(idx.agent),
+      email:  g(idx.email).toLowerCase(),
+      team:   g(idx.team),
+      action: g(idx.action),
+      start:  g(idx.start),
+      end:    g(idx.end),
+      status: g(idx.status),
+    };
+  }).filter(r => r.email && r.start && r.end);
+}
+
+function splitLine(line) {
+  const c=[]; let s=''; let q=false;
+  for(const ch of line){ if(ch==='"'){q=!q;}else if(ch===','&&!q){c.push(s);s='';}else s+=ch; }
+  c.push(s); return c;
+}
+
+// ─── CONSOLIDATE BY EMAIL ────────────────────────────────────────────────────
+// Same email + team + start + end = same booking. Keep latest row (last one wins).
+// Display name = most recent agent name for that email.
+function consolidateByEmail(rows) {
+  const map = new Map(); // key: email|team|start|end
+  rows.forEach(r => {
+    const key = `${r.email}|${r.team}|${r.start}|${r.end}`;
+    map.set(key, r); // later rows overwrite earlier ones
+  });
+  // Also build display name map: email -> latest agent name
+  const nameMap = new Map();
+  rows.forEach(r => { if(r.email) nameMap.set(r.email, r.agent); });
+  return Array.from(map.values()).map(r => ({
+    ...r,
+    displayName: nameMap.get(r.email) || r.agent,
+  }));
+}
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+function populateFilters() {
+  const teams = [...new Set(DATA.map(d=>d.team))].sort();
+  document.getElementById('f-team').innerHTML =
+    '<option value="">All</option>' + teams.map(t=>`<option>${t}</option>`).join('');
+}
+
+function filtered() {
+  const team   = document.getElementById('f-team').value;
+  const status = document.getElementById('f-status').value;
+  const agent  = document.getElementById('f-agent').value.toLowerCase();
+  return DATA.filter(d =>
+    (!team   || d.team===team) &&
+    (!status || d.status===status) &&
+    (!agent  || d.displayName.toLowerCase().includes(agent) || d.email.includes(agent))
+  );
+}
+
+// ─── DATE UTILS ──────────────────────────────────────────────────────────────
+function pd(s) {
+  if (!s) return null;
+  const p = s.split('/');
+  if (p.length===3) return new Date(+p[2],+p[0]-1,+p[1]);
+  const d = new Date(s); return isNaN(d)?null:d;
+}
+function diff(a,b) { return Math.round((b-a)/86400000); }
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render() {
+  const rows = filtered();
+  const cont = document.getElementById('main');
+
+  // Stats bar
+  const total = rows.length;
+  const conf  = rows.filter(r=>r.status==='Confirmed').length;
+  const wait  = rows.filter(r=>r.status==='Waitlist').length;
+  const canc  = rows.filter(r=>['Cancelled','Cancellation Processed'].includes(r.status)).length;
+  document.getElementById('status-bar').innerHTML = `
+    <div class="pill" style="background:#f1f5ff;color:#4f7ef8">${total} total</div>
+    <div class="pill" style="background:#f0fdf4;color:#15803d">&#10003; ${conf} confirmed</div>
+    <div class="pill" style="background:#fff7ed;color:#c2410c">&#9202; ${wait} waitlist</div>
+    <div class="pill" style="background:#fef2f2;color:#b91c1c">&#10007; ${canc} cancelled</div>`;
+
+  if (!rows.length) {
+    cont.innerHTML = '<div style="padding:40px;color:#9098b8;text-align:center">No records match the filters.</div>';
+    return;
+  }
+
+  // Date range
+  const vm = +document.getElementById('f-months').value;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const rS = new Date(today.getFullYear(), today.getMonth(), 1);
+  const rE = new Date(rS.getFullYear(), rS.getMonth()+vm, 0);
+  const totalDays = diff(rS,rE)+1;
+
+  const months = [];
+  let mc = new Date(rS.getFullYear(), rS.getMonth(), 1);
+  while(mc<=rE){ months.push(new Date(mc)); mc=new Date(mc.getFullYear(),mc.getMonth()+1,1); }
+
+  const GW = Math.max(560, window.innerWidth-310);
+  const DW = GW/totalDays;
+  const LW = 190;
+
+  const toPx = d => { const x=typeof d==='string'?pd(d):d; if(!x||x<rS)return 0; if(x>rE)return totalDays*DW; return diff(rS,x)*DW; };
+  const wPx  = (s,e) => { const ds=typeof s==='string'?pd(s):s,de=typeof e==='string'?pd(e):e; if(!ds||!de)return 0; const cs=ds<rS?rS:ds,ce=de>rE?rE:de; return Math.max(5,diff(cs,ce)*DW+DW); };
+  const mPx  = m => { const ms=new Date(m.getFullYear(),m.getMonth(),1),me=new Date(m.getFullYear(),m.getMonth()+1,0); const cs=ms<rS?rS:ms,ce=me>rE?rE:me; return (diff(cs,ce)+1)*DW; };
+  const todayX = toPx(today);
+
+  // Group
+  const teams = {};
+  rows.forEach(r => {
+    if(!teams[r.team]) teams[r.team]={};
+    const key = r.email; // group by email
+    if(!teams[r.team][key]) teams[r.team][key]=[];
+    teams[r.team][key].push(r);
+  });
+
+  const teamW = months.reduce((s,m)=>s+mPx(m),0);
+
+  let html = '';
+  Object.keys(teams).sort().forEach((team,ti) => {
+    const accent = TEAM_COLORS[ti % TEAM_COLORS.length];
+    const agMap  = teams[team];
+    const agKeys = Object.keys(agMap).sort((a,b)=>(agMap[a][0].displayName||a).localeCompare(agMap[b][0].displayName||b));
+
+    html += `<div class="team-block">
+      <div class="team-label">
+        <span class="team-badge" style="background:${accent}">${team}</span>
+        <span class="agent-count">${agKeys.length} agent${agKeys.length>1?'s':''}</span>
+      </div>
+      <div class="tl-wrap"><div class="tl-scroll">
+      <table style="border-collapse:collapse;width:max-content">
+      <thead><tr>
+        <th style="width:${LW}px;min-width:${LW}px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;position:sticky;left:0;z-index:10;padding:0 14px;height:30px;text-align:left;font-size:10px;font-weight:600;color:#9098b8;text-transform:uppercase;letter-spacing:.07em;">Agent</th>`;
+    months.forEach(m => {
+      html += `<th style="width:${mPx(m)}px;min-width:${mPx(m)}px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;border-left:1px solid #e4e7f0;height:30px;padding:0 0 0 8px;font-size:10px;font-weight:600;color:#9098b8;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;">${m.toLocaleDateString('en-US',{month:'short',year:'numeric'})}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    agKeys.forEach((emailKey, ai) => {
+      const entries = agMap[emailKey];
+      const name = entries[0].displayName || entries[0].agent || emailKey;
+      const initials = name.split(/[\s.]+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?';
+      const isLast = ai===agKeys.length-1;
+      const bg = ai%2===0?'#fff':'#fafbff';
+
+      html += `<tr>
+        <td style="width:${LW}px;min-width:${LW}px;height:40px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};background:${bg};position:sticky;left:0;z-index:5;padding:0 14px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:26px;height:26px;border-radius:50%;background:${accent}20;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${accent};flex-shrink:0;">${initials}</div>
+            <div>
+              <div style="font-size:12px;font-weight:500;color:#1a1d2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">${name}</div>
+              <div style="font-size:10px;color:#9098b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">${emailKey}</div>
+            </div>
+          </div>
+        </td>
+        <td colspan="${months.length}" style="height:40px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};border-left:1px solid #e4e7f0;position:relative;width:${teamW}px;padding:0;background:${bg};">`;
+
+      // month lines
+      let xo=0;
+      months.forEach((m,mi)=>{ if(mi>0) html+=`<div style="position:absolute;left:${xo}px;top:0;bottom:0;width:1px;background:#e4e7f0;pointer-events:none"></div>`; xo+=mPx(m); });
+
+      // today
+      if(todayX>=0&&todayX<=teamW) {
+        html+=`<div style="position:absolute;left:${todayX}px;top:0;bottom:0;width:2px;background:#4f7ef8;opacity:.7;pointer-events:none;z-index:3"></div>`;
+      }
+
+      // bars
+      entries.forEach(e => {
+        const ds=pd(e.start),de=pd(e.end);
+        if(!ds||!de) return;
+        const left=toPx(e.start),w=wPx(e.start,e.end);
+        if(left>teamW) return;
+        const d=diff(ds,de)+1;
+        const st=STATUS_STYLE[e.status]||STATUS_STYLE['Cancellation Processed'];
+        const tip=encodeURIComponent(JSON.stringify({name,email:emailKey,team:e.team,start:e.start,end:e.end,status:e.status,days:d}));
+        const strike=st.strike?'text-decoration:line-through;':'';
+        html+=`<div
+          onmouseenter="showTip(event,'${tip}')"
+          onmouseleave="hideTip()"
+          style="position:absolute;left:${left}px;top:7px;width:${w}px;height:26px;border-radius:5px;display:flex;align-items:center;padding:0 7px;font-size:10px;font-weight:600;overflow:hidden;cursor:pointer;z-index:2;background:${st.bg};border:1.5px solid ${st.border};color:${st.color};${strike}"
+        >${w>40?d+'d':''}</div>`;
+      });
+
+      html+=`</td></tr>`;
+    });
+    html+=`</tbody></table></div></div></div>`;
+  });
+
+  cont.innerHTML = html;
+}
+
+// ─── TOOLTIP ─────────────────────────────────────────────────────────────────
+const tt = document.getElementById('tt');
+function showTip(e, enc) {
+  const d = JSON.parse(decodeURIComponent(enc));
+  const st = STATUS_STYLE[d.status]||STATUS_STYLE['Cancellation Processed'];
+  tt.innerHTML=`
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px">${d.name}</div>
+    <div class="r"><span class="l">Email</span><span class="v" style="font-size:11px">${d.email}</span></div>
+    <div class="r"><span class="l">Team</span><span class="v">${d.team}</span></div>
+    <div class="r"><span class="l">From</span><span class="v">${d.start}</span></div>
+    <div class="r"><span class="l">To</span><span class="v">${d.end}</span></div>
+    <div class="r"><span class="l">Days</span><span class="v">${d.days}</span></div>
+    <div style="margin-top:8px;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;background:${st.bg};border:1.5px solid ${st.border};color:${st.color}">${d.status}</div>`;
+  tt.classList.add('on');
+  mv(e);
+}
+function mv(e) {
+  let x=e.clientX+14,y=e.clientY+14;
+  if(x+250>window.innerWidth) x=e.clientX-254;
+  if(y+200>window.innerHeight) y=e.clientY-204;
+  tt.style.left=x+'px'; tt.style.top=y+'px';
+}
+function hideTip() { tt.classList.remove('on'); }
+document.addEventListener('mousemove', e=>{ if(tt.classList.contains('on')) mv(e); });
+window.addEventListener('resize', ()=>{ if(DATA.length) render(); });
+
+// ─── AUTO REFRESH ─────────────────────────────────────────────────────────────
+loadData();
+setInterval(()=>loadData(true), AUTO_REFRESH_MINUTES * 60 * 1000);
+</script>
+</body>
+</html>
