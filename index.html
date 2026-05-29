@@ -392,6 +392,7 @@ function render() {
       entries.forEach(e => {
         const ds=pd(e.start),de=pd(e.end);
         if(!ds||!de) return;
+        if(ds>TIMELINE_END) return; // no mostrar vacaciones fuera del período habilitado
         const left=toPx(e.start),w=wPx(e.start,e.end);
         if(left>teamW) return;
         const d=diff(ds,de)+1;
