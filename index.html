@@ -107,6 +107,7 @@
     <h1>Vacation Timeline</h1>
     <div class="sub" id="last-update">Loading data…</div>
   </div>
+  <a href="https://forms.gle/JbvpTRP1sbSgUFfW7" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#4f7ef8;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:7px;text-decoration:none;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='#2558e0'" onmouseout="this.style.background='#4f7ef8'">&#128197; Request vacation</a>
   <div id="status-bar"></div>
 </header>
 
@@ -120,7 +121,6 @@
     <option value="Confirmed">Confirmed</option>
     <option value="Waitlist">Waitlist</option>
     <option value="Cancelled">Cancelled</option>
-    <option value="Cancellation Processed">Cancellation Processed</option>
   </select>
   <div class="sep"></div>
   <label>Agent</label>
@@ -139,7 +139,6 @@
   <div class="leg"><div class="leg-dot" style="background:#22c55e"></div>Confirmed</div>
   <div class="leg"><div class="leg-dot" style="background:#f97316"></div>Waitlist</div>
   <div class="leg"><div class="leg-dot" style="background:#ef4444"></div>Cancelled</div>
-  <div class="leg"><div class="leg-dot" style="background:#94a3b8"></div>Canc. Processed</div>
   <div class="leg"><div class="leg-dot" style="background:#4f7ef8;border-radius:50%"></div>Today</div>
 </div>
 
@@ -150,7 +149,8 @@
 <script>
 // ─── CONFIG: pegá tu URL acá ────────────────────────────────────────────────
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQa2NKY_Iu1YvnWAPRVoFKVMOg9w90VT93g0oJ9gZk7U9Kz29jUbeZ5qrARPc9iCDynmbdMsbr6UacY/pub?gid=240308761&single=true&output=csv";
-const AUTO_REFRESH_MINUTES = 1; // recarga automática cada N minutos
+const AUTO_REFRESH_MINUTES = 5; // recarga automática cada N minutos
+const TIMELINE_END = new Date(2026, 8, 30); // ← FECHA LÍMITE: meses van de 0-11 (0=enero, 8=septiembre)
 // ─────────────────────────────────────────────────────────────────────────────
 
 let DATA = [];
@@ -312,7 +312,8 @@ function render() {
   const vm = +document.getElementById('f-months').value;
   const today = new Date(); today.setHours(0,0,0,0);
   const rS = new Date(today.getFullYear(), today.getMonth(), 1);
-  const rE = new Date(rS.getFullYear(), rS.getMonth()+vm, 0);
+  const rEraw = new Date(rS.getFullYear(), rS.getMonth()+vm, 0);
+  const rE = TIMELINE_END < rEraw ? TIMELINE_END : rEraw;
   const totalDays = diff(rS,rE)+1;
 
   const months = [];
