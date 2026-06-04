@@ -149,7 +149,7 @@
 <script>
 // ─── CONFIG: pegá tu URL acá ────────────────────────────────────────────────
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQa2NKY_Iu1YvnWAPRVoFKVMOg9w90VT93g0oJ9gZk7U9Kz29jUbeZ5qrARPc9iCDynmbdMsbr6UacY/pub?gid=240308761&single=true&output=csv";
-const AUTO_REFRESH_MINUTES = 1; // recarga automática cada N minutos
+const AUTO_REFRESH_MINUTES = 5; // recarga automática cada N minutos
 const TIMELINE_END = new Date(2026, 8, 30); // ← FECHA LÍMITE: meses van de 0-11 (0=enero, 8=septiembre)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -246,18 +246,90 @@ function splitLine(line) {
 // Same email + team + start + end = same booking. Keep latest row (last one wins).
 // Display name = most recent agent name for that email.
 function consolidateByEmail(rows) {
-  const map = new Map(); // key: email|team|start|end
-  rows.forEach(r => {
-    const key = `${r.email}|${r.team}|${r.start}|${r.end}`;
-    map.set(key, r); // later rows overwrite earlier ones
-  });
-  // Also build display name map: email -> latest agent name
+  // Build display name map: email -> latest agent name
   const nameMap = new Map();
   rows.forEach(r => { if(r.email) nameMap.set(r.email, r.agent); });
-  return Array.from(map.values()).map(r => ({
-    ...r,
-    displayName: nameMap.get(r.email) || r.agent,
-  }));
+
+  // Group by email+team
+  const grouped = new Map();
+  rows.forEach(r => {
+    const key = `${r.email}|${r.team}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(r);
+  });
+
+  const result = [];
+
+  grouped.forEach((entries, key) => {
+    const displayName = nameMap.get(entries[0].email) || entries[0].agent;
+    const base = { email: entries[0].email, team: entries[0].team, displayName };
+
+    // Separate bookings from cancellations
+    const bookings     = entries.filter(r => r.action.toLowerCase() === 'book' &&
+                           !['Cancelled','Cancellation Processed'].includes(r.status));
+    const cancellations = entries.filter(r =>
+                           r.action.toLowerCase() === 'cancel' ||
+                           r.status === 'Cancellation Processed');
+    // Also include rows already marked Cancelled by Apps Script
+    const alreadyCancelled = entries.filter(r => r.status === 'Cancelled');
+
+    // Helper: convert date string to ms timestamp
+    const ts = s => { const p=s.split('/'); return new Date(+p[2],+p[0]-1,+p[1]).getTime(); };
+    const fmtDate = t => { const d=new Date(t); return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`; };
+
+    // For each booking, subtract all cancellation ranges → produce fragments
+    bookings.forEach(bk => {
+      const bStart = ts(bk.start);
+      const bEnd   = ts(bk.end);
+
+      // Collect cancellation ranges that overlap this booking
+      const cancRanges = cancellations
+        .map(c => ({ s: ts(c.start), e: ts(c.end) }))
+        .filter(c => c.s <= bEnd && c.e >= bStart);
+
+      if (cancRanges.length === 0) {
+        // No cancellations — show as-is
+        result.push({ ...base, start: bk.start, end: bk.end, status: bk.status, action: bk.action });
+        return;
+      }
+
+      // Subtract cancellation ranges from booking range
+      // Work with array of [start,end] intervals in ms
+      let remaining = [[bStart, bEnd]];
+
+      cancRanges.forEach(cr => {
+        const next = [];
+        remaining.forEach(([s, e]) => {
+          if (cr.s > s) next.push([s, Math.min(cr.s - 86400000, e)]); // piece before cancel
+          if (cr.e < e) next.push([Math.max(cr.e + 86400000, s), e]); // piece after cancel
+          // if cancel covers entire interval → nothing added (disappears)
+        });
+        remaining = next.filter(([s,e]) => s <= e);
+      });
+
+      // Add confirmed fragments (what remains after subtracting cancellations)
+      remaining.forEach(([s, e]) => {
+        const days = Math.round((e - s) / 86400000) + 1;
+        result.push({ ...base, start: fmtDate(s), end: fmtDate(e), status: bk.status, action: bk.action, days });
+      });
+
+      // Add cancelled fragments (the cancelled ranges clipped to booking bounds)
+      cancRanges.forEach(cr => {
+        const s = Math.max(cr.s, bStart);
+        const e = Math.min(cr.e, bEnd);
+        if (s > e) return;
+        const days = Math.round((e - s) / 86400000) + 1;
+        result.push({ ...base, start: fmtDate(s), end: fmtDate(e), status: 'Cancelled', action: 'cancel', days });
+      });
+    });
+
+    // Rows already marked Cancelled by Apps Script (exact-match cancellations)
+    alreadyCancelled.forEach(r => {
+      result.push({ ...base, start: r.start, end: r.end, status: 'Cancelled', action: r.action });
+    });
+  });
+
+  return result;
 }
 
 // ─── FILTERS ─────────────────────────────────────────────────────────────────
@@ -395,7 +467,7 @@ function render() {
         if(ds>TIMELINE_END) return; // no mostrar vacaciones fuera del período habilitado
         const left=toPx(e.start),w=wPx(e.start,e.end);
         if(left>teamW) return;
-        const d=diff(ds,de)+1;
+        const d=e.days || diff(ds,de)+1;
         const st=STATUS_STYLE[e.status]||STATUS_STYLE['Cancellation Processed'];
         const tip=encodeURIComponent(JSON.stringify({name,email:emailKey,team:e.team,start:e.start,end:e.end,status:e.status,days:d}));
         const strike=st.strike?'text-decoration:line-through;':'';
