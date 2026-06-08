@@ -395,8 +395,28 @@ function render() {
       const isLast = ai===agKeys.length-1;
       const bg = ai%2===0?'#fff':'#fafbff';
 
+      // Pre-calculate lane assignments for this agent's entries
+      const LANE_H=22, BAR_H=18;
+      const statusOrder={'Confirmed':0,'Waitlist':1,'Cancelled':2,'Cancellation Processed':3};
+      const validE = entries
+        .filter(e=>{ const ds=pd(e.start),de=pd(e.end); return ds&&de&&ds<=TIMELINE_END; })
+        .sort((a,b)=>(statusOrder[a.status]||0)-(statusOrder[b.status]||0));
+      const lanesArr=[];
+      const laneIdx=validE.map(e=>{
+        const left=toPx(e.start), w=wPx(e.start,e.end), right=left+w;
+        if(left>teamW) return -1;
+        let li=0;
+        while(true){
+          if(!lanesArr[li]) lanesArr[li]=[];
+          if(!lanesArr[li].some(([l,r])=>left<r&&right>l)){ lanesArr[li].push([left,right]); break; }
+          li++;
+        }
+        return li;
+      });
+      const rowH = Math.max(40, (lanesArr.length||1)*LANE_H+8);
+
       html += `<tr>
-        <td style="width:${LW}px;min-width:${LW}px;height:40px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};background:${bg};position:sticky;left:0;z-index:5;padding:0 14px;">
+        <td style="width:${LW}px;min-width:${LW}px;height:${rowH}px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};background:${bg};position:sticky;left:0;z-index:5;padding:0 14px;">
           <div style="display:flex;align-items:center;gap:8px;">
             <div style="width:26px;height:26px;border-radius:50%;background:${accent}20;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${accent};flex-shrink:0;">${initials}</div>
             <div>
@@ -405,7 +425,7 @@ function render() {
             </div>
           </div>
         </td>
-        <td colspan="${months.length}" style="height:40px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};border-left:1px solid #e4e7f0;position:relative;width:${teamW}px;padding:0;background:${bg};">`;
+        <td colspan="${months.length}" style="height:${rowH}px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};border-left:1px solid #e4e7f0;position:relative;width:${teamW}px;padding:0;background:${bg};">`;
 
       // month lines
       let xo=0;
@@ -416,22 +436,23 @@ function render() {
         html+=`<div style="position:absolute;left:${todayX}px;top:0;bottom:0;width:2px;background:#4f7ef8;opacity:.7;pointer-events:none;z-index:3"></div>`;
       }
 
-      // bars
-      entries.forEach(e => {
-        const ds=pd(e.start),de=pd(e.end);
-        if(!ds||!de) return;
-        if(ds>TIMELINE_END) return; // no mostrar vacaciones fuera del período habilitado
-        const left=toPx(e.start),w=wPx(e.start,e.end);
-        if(left>teamW) return;
-        const d=e.days || diff(ds,de)+1;
-        const st=STATUS_STYLE[e.status]||STATUS_STYLE['Cancellation Processed'];
-        const tip=encodeURIComponent(JSON.stringify({name,email:emailKey,team:e.team,start:e.start,end:e.end,status:e.status,days:d}));
-        const strike=st.strike?'text-decoration:line-through;':'';
+      // bars — draw using pre-calculated lanes
+      validE.forEach((e, ei) => {
+        const li = laneIdx[ei];
+        if(li < 0) return;
+        const left = toPx(e.start);
+        const w    = wPx(e.start, e.end);
+        if(left > teamW) return;
+        const top  = 5 + li * LANE_H;
+        const d    = e.days || diff(pd(e.start), pd(e.end))+1;
+        const st   = STATUS_STYLE[e.status]||STATUS_STYLE['Cancellation Processed'];
+        const tip  = encodeURIComponent(JSON.stringify({name,email:emailKey,team:e.team,start:e.start,end:e.end,status:e.status,days:d}));
+        const strike = st.strike?'text-decoration:line-through;':'';
         html+=`<div
           onmouseenter="showTip(event,'${tip}')"
           onmouseleave="hideTip()"
-          style="position:absolute;left:${left}px;top:7px;width:${w}px;height:26px;border-radius:5px;display:flex;align-items:center;padding:0 7px;font-size:10px;font-weight:600;overflow:hidden;cursor:pointer;z-index:2;background:${st.bg};border:1.5px solid ${st.border};color:${st.color};${strike}"
-        >${w>40?d+'d':''}</div>`;
+          style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${BAR_H}px;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:600;overflow:hidden;cursor:pointer;z-index:2;background:${st.bg};border:1.5px solid ${st.border};color:${st.color};${strike}"
+        >${w>36?d+'d':''}</div>`;
       });
 
       html+=`</td></tr>`;
