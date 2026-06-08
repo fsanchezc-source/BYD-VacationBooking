@@ -196,6 +196,7 @@ async function loadData(silent=false) {
   DATA = parseCSV(text);
   // KEY = email: consolidate rows with same email+team+start+end into latest status
   DATA = consolidateByEmail(DATA);
+  console.log('DATA after consolidation:', DATA.length, 'rows', DATA.slice(0,3));
   populateFilters();
   render();
   const now = new Date();
