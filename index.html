@@ -265,12 +265,14 @@ function consolidateByEmail(rows) {
     const base = { email: entries[0].email, team: entries[0].team, displayName };
 
     // Separate bookings from cancellations
+    // Bookings = action Book, regardless of status (Confirmed, Waitlist)
     const bookings     = entries.filter(r => r.action.toLowerCase() === 'book' &&
                            !['Cancelled','Cancellation Processed'].includes(r.status));
+    // Cancellations = ONLY rows where action is explicitly 'cancel' OR status is Cancellation Processed
     const cancellations = entries.filter(r =>
-                           r.action.toLowerCase() === 'cancel' ||
+                           r.action.toLowerCase() === 'cancel' &&
                            r.status === 'Cancellation Processed');
-    // Also include rows already marked Cancelled by Apps Script
+    // Also include rows already marked Cancelled by Apps Script (exact-match cancellations)
     const alreadyCancelled = entries.filter(r => r.status === 'Cancelled');
 
     // Helper: convert date string to ms timestamp
