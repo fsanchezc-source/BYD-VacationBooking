@@ -219,10 +219,12 @@ function consolidateByEmail(rows) {
     const base = { email: entries[0].email, team: entries[0].team, displayName };
 
     // Separate bookings from cancellations
-    // Bookings = action Book, regardless of status (Confirmed, Waitlist)
-    const bookings     = entries.filter(r => r.action.toLowerCase() === 'book' &&
-                           !['Cancelled','Cancellation Processed'].includes(r.status));
-    // Cancellations = ONLY rows where action is explicitly 'cancel' OR status is Cancellation Processed
+    // Only CONFIRMED bookings get fragmented — Waitlist rows are always shown as-is
+    const confirmedBookings = entries.filter(r => r.action.toLowerCase() === 'book' &&
+                           r.status === 'Confirmed');
+    const waitlistBookings  = entries.filter(r => r.action.toLowerCase() === 'book' &&
+                           r.status === 'Waitlist');
+    // Cancellations = ONLY rows where action is explicitly 'cancel' AND status is Cancellation Processed
     const cancellations = entries.filter(r =>
                            r.action.toLowerCase() === 'cancel' &&
                            r.status === 'Cancellation Processed');
@@ -233,8 +235,13 @@ function consolidateByEmail(rows) {
     const ts = s => { const p=s.split('/'); return new Date(+p[2],+p[0]-1,+p[1]).getTime(); };
     const fmtDate = t => { const d=new Date(t); return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`; };
 
-    // For each booking, subtract all cancellation ranges → produce fragments
-    bookings.forEach(bk => {
+    // Waitlist rows shown as-is — no fragmentation
+    waitlistBookings.forEach(bk => {
+      result.push({ ...base, start: bk.start, end: bk.end, status: bk.status, action: bk.action });
+    });
+
+    // For each CONFIRMED booking, subtract cancellation ranges → produce fragments
+    confirmedBookings.forEach(bk => {
       const bStart = ts(bk.start);
       const bEnd   = ts(bk.end);
 
