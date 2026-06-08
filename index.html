@@ -147,8 +147,8 @@
 <div id="loading">Loading data…</div>
 
 <script>
-// ─── CONFIG: pegá tu URL acá ────────────────────────────────────────────────
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQa2NKY_Iu1YvnWAPRVoFKVMOg9w90VT93g0oJ9gZk7U9Kz29jUbeZ5qrARPc9iCDynmbdMsbr6UacY/pub?gid=240308761&single=true&output=csv";
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhD7vILdHjU64xpBVEBNwu-t9Cj6XSIjBHk9ZJJ3-jj6opZmomjS3CRxzadx01nfZaEA/exec";
 const AUTO_REFRESH_MINUTES = 5; // recarga automática cada N minutos
 const TIMELINE_END = new Date(2026, 8, 30); // ← FECHA LÍMITE: meses van de 0-11 (0=enero, 8=septiembre)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,84 +164,37 @@ const STATUS_STYLE = {
 };
 
 // ─── FETCH ───────────────────────────────────────────────────────────────────
-async function tryFetch(url, ms) {
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), ms);
-  try {
-    const r = await fetch(url, {signal:ctrl.signal});
-    clearTimeout(t);
-    if (!r.ok) return null;
-    const txt = await r.text();
-    return txt && txt.trim().length > 10 ? txt : null;
-  } catch(e) { clearTimeout(t); return null; }
-}
-
 async function loadData(silent=false) {
   if (!silent) showLoading(true);
-  const proxies = [
-    'https://api.allorigins.win/raw?url=' + encodeURIComponent(SHEET_CSV_URL),
-    'https://corsproxy.io/?' + encodeURIComponent(SHEET_CSV_URL),
-    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(SHEET_CSV_URL),
-  ];
-  let text = null;
-  for (const p of proxies) {
-    text = await tryFetch(p, 9000);
-    if (text) break;
+  try {
+    const res = await fetch(APPS_SCRIPT_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    showLoading(false);
+    if (!json || !json.length) {
+      document.getElementById('last-update').textContent = 'No data returned from sheet';
+      return;
+    }
+    DATA = json.filter(r => r.email && r.start && r.end);
+    DATA = consolidateByEmail(DATA);
+    populateFilters();
+    render();
+    const now = new Date();
+    document.getElementById('last-update').textContent =
+      'Last updated: ' + now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) +
+      ' · ' + DATA.length + ' requests';
+  } catch(e) {
+    showLoading(false);
+    document.getElementById('last-update').textContent = 'Error loading data: ' + e.message;
+    console.error(e);
   }
-  showLoading(false);
-  if (!text) {
-    document.getElementById('last-update').textContent = 'Could not load data — check sheet URL in config';
-    return;
-  }
-  DATA = parseCSV(text);
-  // KEY = email: consolidate rows with same email+team+start+end into latest status
-  DATA = consolidateByEmail(DATA);
-  console.log('DATA after consolidation:', DATA.length, 'rows', DATA.slice(0,3));
-  populateFilters();
-  render();
-  const now = new Date();
-  document.getElementById('last-update').textContent =
-    'Last updated: ' + now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) +
-    ' · ' + DATA.length + ' requests';
 }
 
 function showLoading(on) {
   document.getElementById('loading').style.display = on ? 'flex' : 'none';
 }
 
-// ─── CSV PARSE ───────────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const h = lines[0].split(',').map(s=>s.trim().replace(/^"|"$/g,'').toLowerCase());
-  const idx = {
-    agent:  h.findIndex(x=>x.includes('agent')),
-    email:  h.findIndex(x=>x.includes('email')),
-    team:   h.findIndex(x=>x.includes('team')),
-    action: h.findIndex(x=>x.includes('action')),
-    start:  h.findIndex(x=>x.includes('start')),
-    end:    h.findIndex(x=>x.includes('end')),
-    status: h.findIndex(x=>x.includes('column')||x.includes('status')),
-  };
-  return lines.slice(1).map(line => {
-    const c = splitLine(line);
-    const g = i => i>=0 ? (c[i]||'').replace(/^"|"$/g,'').trim() : '';
-    return {
-      agent:  g(idx.agent),
-      email:  g(idx.email).toLowerCase(),
-      team:   g(idx.team),
-      action: g(idx.action),
-      start:  g(idx.start),
-      end:    g(idx.end),
-      status: g(idx.status),
-    };
-  }).filter(r => r.email && r.start && r.end);
-}
-
-function splitLine(line) {
-  const c=[]; let s=''; let q=false;
-  for(const ch of line){ if(ch==='"'){q=!q;}else if(ch===','&&!q){c.push(s);s='';}else s+=ch; }
-  c.push(s); return c;
-}
+// CSV parsing removed — data comes directly from Apps Script as JSON
 
 // ─── CONSOLIDATE BY EMAIL ────────────────────────────────────────────────────
 // Same email + team + start + end = same booking. Keep latest row (last one wins).
