@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vacation Timeline</title>
+<title>Vacation Planner</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -66,7 +66,7 @@
   }
   .agent-count { font-size: 11px; color: #9098b8; }
 
-  /* TIMELINE TABLE */
+  /* NE TABLE */
   .tl-wrap {
     background: #fff;
     border: 1px solid #e4e7f0;
@@ -104,7 +104,7 @@
 
 <header>
   <div>
-    <h1>Vacation Timeline</h1>
+    <h1>Vacation Planner</h1>
     <div class="sub" id="last-update">Loading data…</div>
   </div>
   <a href="https://forms.gle/JbvpTRP1sbSgUFfW7" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#4f7ef8;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:7px;text-decoration:none;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='#2558e0'" onmouseout="this.style.background='#4f7ef8'">&#128197; Request or Cancel vacation</a>
@@ -149,8 +149,8 @@
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxFe9NBaQPWOLVWlkGvaYONMlMxd7sUlfZWcgmu76eG7UhDpcED5dIBBxkHN0-kzgqPAg/exec";
-const AUTO_REFRESH_MINUTES = 5; // recarga automática cada N minutos
-const TIMELINE_END = new Date(2026, 8, 30); // ← FECHA LÍMITE: meses van de 0-11 (0=enero, 8=septiembre)
+const AUTO_REFRESH_MINUTES = 1; // recarga automática cada N minutos
+const TIMELINE_END = new Date(2026, 9, 30); // ← FECHA LÍMITE: meses van de 0-11 (0=enero, 8=septiembre)
 // ─────────────────────────────────────────────────────────────────────────────
 
 let DATA = [];
