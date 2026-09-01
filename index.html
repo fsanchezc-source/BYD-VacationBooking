@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vacation Planner</title>
+<title>Vacation Timeline</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #f7f8fc; color: #1a1d2e; font-family: 'Inter', sans-serif; font-size: 13px; }
 
-  /* HEADER */
   header {
     background: #fff;
     border-bottom: 1px solid #e4e7f0;
@@ -23,7 +22,6 @@
   .pill { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
   #status-bar { display:flex; gap:10px; flex-wrap:wrap; margin-left:auto; }
 
-  /* TOOLBAR */
   .toolbar {
     background: #fff;
     border-bottom: 1px solid #e4e7f0;
@@ -40,7 +38,6 @@
   select:focus, input:focus { border-color: #4f7ef8; }
   .sep { width:1px; height:20px; background:#e4e7f0; margin:0 4px; }
 
-  /* LEGEND */
   .legend {
     background: #f7f8fc;
     border-bottom: 1px solid #e4e7f0;
@@ -50,33 +47,29 @@
   .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:#6b7494; font-weight:500; }
   .leg-dot { width:10px; height:10px; border-radius:3px; }
 
-  /* MAIN */
   .main { padding: 20px 28px 60px; }
 
-  /* TEAM */
   .team-block { margin-bottom: 24px; }
-  .team-label {
-    display: flex; align-items: center; gap: 8px;
-    margin-bottom: 8px;
-  }
-  .team-badge {
-    font-size: 11px; font-weight: 700; letter-spacing: .08em;
-    text-transform: uppercase; padding: 3px 10px;
-    border-radius: 5px; color: #fff;
-  }
+  .team-label { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .team-badge { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 10px; border-radius: 5px; color: #fff; }
   .agent-count { font-size: 11px; color: #9098b8; }
 
-  /* NE TABLE */
-  .tl-wrap {
-    background: #fff;
-    border: 1px solid #e4e7f0;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,.04);
-  }
+  .tl-wrap { background: #fff; border: 1px solid #e4e7f0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
   .tl-scroll { overflow-x: auto; }
 
-  /* TOOLTIP */
+  /* Past-entries collapsed row */
+  .past-row-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 14px; cursor: pointer;
+    border-top: 1px solid #f0f2f8;
+    background: #fafbff;
+    font-size: 11px; color: #9098b8; font-weight: 500;
+    user-select: none;
+  }
+  .past-row-btn:hover { background: #f0f2f8; }
+  .past-rows-container { display: none; }
+  .past-rows-container.open { display: contents; }
+
   #tt {
     position: fixed; z-index: 999;
     background: #fff; border: 1px solid #e4e7f0;
@@ -91,7 +84,6 @@
   #tt .l { color:#9098b8; }
   #tt .v { font-weight:600; color:#1a1d2e; }
 
-  /* LOADING */
   #loading {
     position: fixed; inset: 0; background: rgba(247,248,252,.85);
     display: flex; align-items: center; justify-content: center;
@@ -149,18 +141,18 @@
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxFe9NBaQPWOLVWlkGvaYONMlMxd7sUlfZWcgmu76eG7UhDpcED5dIBBxkHN0-kzgqPAg/exec";
-const AUTO_REFRESH_MINUTES = 1; // recarga automática cada N minutos
-const TIMELINE_END = new Date(2026, 11, 19); // ← FECHA LÍMITE: meses van de 0-11 (0=enero, 8=septiembre)
+const AUTO_REFRESH_MINUTES = 1;
+const TIMELINE_END = new Date(2026, 11, 20); // ← FECHA LÍMITE: meses 0-11 (9=octubre)
 // ─────────────────────────────────────────────────────────────────────────────
 
 let DATA = [];
 
-const TEAM_COLORS = ['#4f7ef8','#9b5de5','#f72585','#06d6a0','#f97316','#00b4d8'];
+const TEAM_COLORS = ['#4f7ef8','#9b5de5','#f72585','#06d6a0','#f97316','#00b4d8','#e11d48','#0891b2'];
 const STATUS_STYLE = {
-  'Confirmed':              {bg:'#f0fdf4', border:'#22c55e', color:'#15803d', dot:'#22c55e'},
-  'Waitlist':               {bg:'#fff7ed', border:'#f97316', color:'#c2410c', dot:'#f97316'},
-  'Cancelled':              {bg:'#fef2f2', border:'#ef4444', color:'#b91c1c', dot:'#ef4444', strike:true},
-  'Cancellation Processed': {bg:'#f8fafc', border:'#94a3b8', color:'#64748b', dot:'#94a3b8', strike:true},
+  'Confirmed':              {bg:'#f0fdf4', border:'#22c55e', color:'#15803d'},
+  'Waitlist':               {bg:'#fff7ed', border:'#f97316', color:'#c2410c'},
+  'Cancelled':              {bg:'#fef2f2', border:'#ef4444', color:'#b91c1c', strike:true},
+  'Cancellation Processed': {bg:'#f8fafc', border:'#94a3b8', color:'#64748b', strike:true},
 };
 
 // ─── FETCH ───────────────────────────────────────────────────────────────────
@@ -176,7 +168,7 @@ async function loadData(silent=false) {
       return;
     }
     DATA = json.filter(r => r.email && r.start && r.end);
-    DATA = consolidateByEmail(DATA);
+    DATA = addDisplayName(DATA);
     populateFilters();
     render();
     const now = new Date();
@@ -185,7 +177,7 @@ async function loadData(silent=false) {
       ' · ' + DATA.length + ' requests';
   } catch(e) {
     showLoading(false);
-    document.getElementById('last-update').textContent = 'Error loading data: ' + e.message;
+    document.getElementById('last-update').textContent = 'Error: ' + e.message;
     console.error(e);
   }
 }
@@ -194,17 +186,10 @@ function showLoading(on) {
   document.getElementById('loading').style.display = on ? 'flex' : 'none';
 }
 
-// CSV parsing removed — data comes directly from Apps Script as JSON
-
-// ─── ADD DISPLAY NAME ────────────────────────────────────────────────────────
-// Data comes pre-fragmented from the Processed sheet — just add displayName
-function consolidateByEmail(rows) {
+function addDisplayName(rows) {
   const nameMap = new Map();
   rows.forEach(r => { if(r.email) nameMap.set(r.email, r.agent); });
-  return rows.map(r => ({
-    ...r,
-    displayName: nameMap.get(r.email) || r.agent,
-  }));
+  return rows.map(r => ({ ...r, displayName: nameMap.get(r.email) || r.agent }));
 }
 
 // ─── FILTERS ─────────────────────────────────────────────────────────────────
@@ -239,7 +224,6 @@ function render() {
   const rows = filtered();
   const cont = document.getElementById('main');
 
-  // Stats bar
   const total = rows.length;
   const conf  = rows.filter(r=>r.status==='Confirmed').length;
   const wait  = rows.filter(r=>r.status==='Waitlist').length;
@@ -255,43 +239,87 @@ function render() {
     return;
   }
 
-  // Date range
+  // Date range: from 1st of current month to TIMELINE_END (capped by view selector)
   const vm = +document.getElementById('f-months').value;
   const today = new Date(); today.setHours(0,0,0,0);
   const rS = new Date(today.getFullYear(), today.getMonth(), 1);
   const rEraw = new Date(rS.getFullYear(), rS.getMonth()+vm, 0);
   const rE = TIMELINE_END < rEraw ? TIMELINE_END : rEraw;
-  const totalDays = diff(rS,rE)+1;
+  const totalDays = diff(rS, rE) + 1;
 
+  // Build months array
   const months = [];
   let mc = new Date(rS.getFullYear(), rS.getMonth(), 1);
-  while(mc<=rE){ months.push(new Date(mc)); mc=new Date(mc.getFullYear(),mc.getMonth()+1,1); }
+  while(mc <= rE) { months.push(new Date(mc)); mc = new Date(mc.getFullYear(), mc.getMonth()+1, 1); }
 
-  const GW = Math.max(560, window.innerWidth-310);
-  const DW = GW/totalDays;
-  const LW = 190;
+  // Pixels per day — fixed 28px gives enough room to read week numbers
+  const DW = 28;
+  const LW = 190; // agent label column width
 
-  const toPx = d => { const x=typeof d==='string'?pd(d):d; if(!x||x<rS)return 0; if(x>rE)return totalDays*DW; return diff(rS,x)*DW; };
-  const wPx  = (s,e) => { const ds=typeof s==='string'?pd(s):s,de=typeof e==='string'?pd(e):e; if(!ds||!de)return 0; const cs=ds<rS?rS:ds,ce=de>rE?rE:de; return Math.max(5,diff(cs,ce)*DW+DW); };
-  const mPx  = m => { const ms=new Date(m.getFullYear(),m.getMonth(),1),me=new Date(m.getFullYear(),m.getMonth()+1,0); const cs=ms<rS?rS:ms,ce=me>rE?rE:me; return (diff(cs,ce)+1)*DW; };
+  const toPx = d => {
+    const x = typeof d==='string' ? pd(d) : d;
+    if(!x || x<rS) return 0;
+    if(x>rE) return totalDays*DW;
+    return diff(rS,x)*DW;
+  };
+  const wPx = (s,e) => {
+    const ds=typeof s==='string'?pd(s):s, de=typeof e==='string'?pd(e):e;
+    if(!ds||!de) return 0;
+    const cs=ds<rS?rS:ds, ce=de>rE?rE:de;
+    return Math.max(5, diff(cs,ce)*DW+DW);
+  };
+  const mPx = m => {
+    const ms=new Date(m.getFullYear(),m.getMonth(),1), me=new Date(m.getFullYear(),m.getMonth()+1,0);
+    const cs=ms<rS?rS:ms, ce=me>rE?rE:me;
+    return (diff(cs,ce)+1)*DW;
+  };
   const todayX = toPx(today);
+  const teamW  = months.reduce((s,m)=>s+mPx(m), 0);
 
-  // Group
+  // Build week tick marks within the visible range
+  // Start from first Monday on or after rS
+  function getWeekTicks() {
+    const ticks = []; // {label, px}
+    let d = new Date(rS);
+    // Find first Monday
+    while(d.getDay() !== 1) d = new Date(d.getTime()+86400000);
+    while(d <= rE) {
+      ticks.push({ px: toPx(d), day: d.getDate(), month: d.getMonth() });
+      d = new Date(d.getTime() + 7*86400000);
+    }
+    return ticks;
+  }
+  const weekTicks = getWeekTicks();
+
+  // Group by team → email
   const teams = {};
   rows.forEach(r => {
     if(!teams[r.team]) teams[r.team]={};
-    const key = r.email; // group by email
-    if(!teams[r.team][key]) teams[r.team][key]=[];
-    teams[r.team][key].push(r);
+    if(!teams[r.team][r.email]) teams[r.team][r.email]=[];
+    teams[r.team][r.email].push(r);
   });
 
-  const teamW = months.reduce((s,m)=>s+mPx(m),0);
-
   let html = '';
-  Object.keys(teams).sort().forEach((team,ti) => {
-    const accent = TEAM_COLORS[ti % TEAM_COLORS.length];
+  let teamColorIdx = 0;
+
+  Object.keys(teams).sort().forEach(team => {
+    const accent = TEAM_COLORS[teamColorIdx++ % TEAM_COLORS.length];
     const agMap  = teams[team];
-    const agKeys = Object.keys(agMap).sort((a,b)=>(agMap[a][0].displayName||a).localeCompare(agMap[b][0].displayName||b));
+    const agKeys = Object.keys(agMap).sort((a,b) =>
+      (agMap[a][0].displayName||a).localeCompare(agMap[b][0].displayName||b));
+
+    // Separate agents with future entries vs only past entries
+    const futureAgents = [];
+    const pastAgents   = [];
+    agKeys.forEach(emailKey => {
+      const entries = agMap[emailKey];
+      const hasFuture = entries.some(e => {
+        const ds = pd(e.start);
+        return ds && ds >= rS;
+      });
+      if(hasFuture) futureAgents.push(emailKey);
+      else pastAgents.push(emailKey);
+    });
 
     html += `<div class="team-block">
       <div class="team-label">
@@ -300,26 +328,53 @@ function render() {
       </div>
       <div class="tl-wrap"><div class="tl-scroll">
       <table style="border-collapse:collapse;width:max-content">
-      <thead><tr>
-        <th style="width:${LW}px;min-width:${LW}px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;position:sticky;left:0;z-index:10;padding:0 14px;height:30px;text-align:left;font-size:10px;font-weight:600;color:#9098b8;text-transform:uppercase;letter-spacing:.07em;">Agent</th>`;
-    months.forEach(m => {
-      html += `<th style="width:${mPx(m)}px;min-width:${mPx(m)}px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;border-left:1px solid #e4e7f0;height:30px;padding:0 0 0 8px;font-size:10px;font-weight:600;color:#9098b8;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;">${m.toLocaleDateString('en-US',{month:'short',year:'numeric'})}</th>`;
-    });
-    html += `</tr></thead><tbody>`;
+      <thead>`;
 
-    agKeys.forEach((emailKey, ai) => {
+    // Month header row
+    html += `<tr>
+      <th style="width:${LW}px;min-width:${LW}px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;position:sticky;left:0;z-index:11;padding:0 14px;height:28px;text-align:left;font-size:10px;font-weight:600;color:#9098b8;text-transform:uppercase;letter-spacing:.07em;"></th>`;
+    months.forEach(m => {
+      html += `<th colspan="1" style="width:${mPx(m)}px;min-width:${mPx(m)}px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;border-left:2px solid #d0d5e8;height:28px;padding:0 0 0 6px;font-size:10px;font-weight:700;color:#6b7494;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;">${m.toLocaleDateString('en-US',{month:'short',year:'numeric'})}</th>`;
+    });
+    html += `</tr>`;
+
+    // Week-day ruler row — single wide cell with absolute-positioned ticks
+    html += `<tr>
+      <th style="width:${LW}px;min-width:${LW}px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;position:sticky;left:0;z-index:11;height:20px;"></th>
+      <td colspan="${months.length}" style="position:relative;height:20px;background:#f7f8fc;border-bottom:1px solid #e4e7f0;border-left:1px solid #e4e7f0;width:${teamW}px;padding:0;">`;
+
+    // Month separator lines on ruler
+    let xo2 = 0;
+    months.forEach((m,mi) => {
+      if(mi>0) html += `<div style="position:absolute;left:${xo2}px;top:0;bottom:0;width:2px;background:#d0d5e8;pointer-events:none;z-index:1"></div>`;
+      xo2 += mPx(m);
+    });
+    // Week ticks
+    weekTicks.forEach(t => {
+      html += `<div style="position:absolute;left:${t.px}px;top:0;bottom:0;width:1px;background:#e8eaf2;pointer-events:none;z-index:0"></div>
+               <span style="position:absolute;left:${t.px+2}px;top:3px;font-size:9px;color:#b0b8d0;font-weight:600;white-space:nowrap;z-index:1">${t.day}</span>`;
+    });
+    // Today marker on ruler
+    if(todayX>=0&&todayX<=teamW) {
+      html += `<div style="position:absolute;left:${todayX}px;top:0;bottom:0;width:2px;background:#4f7ef8;opacity:.8;pointer-events:none;z-index:2"></div>`;
+    }
+    html += `</td></tr>`;
+    html += `</thead><tbody>`;
+
+    // Render agent rows
+    const renderAgentRow = (emailKey, isLast) => {
       const entries = agMap[emailKey];
       const name = entries[0].displayName || entries[0].agent || emailKey;
       const initials = name.split(/[\s.]+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?';
-      const isLast = ai===agKeys.length-1;
-      const bg = ai%2===0?'#fff':'#fafbff';
+      const bg = Object.keys(agMap).indexOf(emailKey)%2===0?'#fff':'#fafbff';
 
-      // Pre-calculate lane assignments for this agent's entries
+      // Lane calculation — only entries within visible range
       const LANE_H=22, BAR_H=18;
       const statusOrder={'Confirmed':0,'Waitlist':1,'Cancelled':2,'Cancellation Processed':3};
       const validE = entries
-        .filter(e=>{ const ds=pd(e.start),de=pd(e.end); return ds&&de&&ds<=TIMELINE_END; })
+        .filter(e => { const ds=pd(e.start),de=pd(e.end); return ds&&de&&de>=rS&&ds<=TIMELINE_END; })
         .sort((a,b)=>(statusOrder[a.status]||0)-(statusOrder[b.status]||0));
+
       const lanesArr=[];
       const laneIdx=validE.map(e=>{
         const left=toPx(e.start), w=wPx(e.start,e.end), right=left+w;
@@ -334,7 +389,7 @@ function render() {
       });
       const rowH = Math.max(40, (lanesArr.length||1)*LANE_H+8);
 
-      html += `<tr>
+      let row = `<tr>
         <td style="width:${LW}px;min-width:${LW}px;height:${rowH}px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};background:${bg};position:sticky;left:0;z-index:5;padding:0 14px;">
           <div style="display:flex;align-items:center;gap:8px;">
             <div style="width:26px;height:26px;border-radius:50%;background:${accent}20;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${accent};flex-shrink:0;">${initials}</div>
@@ -346,40 +401,77 @@ function render() {
         </td>
         <td colspan="${months.length}" style="height:${rowH}px;border-bottom:${isLast?'none':'1px solid #f0f2f8'};border-left:1px solid #e4e7f0;position:relative;width:${teamW}px;padding:0;background:${bg};">`;
 
-      // month lines
+      // Month separator lines
       let xo=0;
-      months.forEach((m,mi)=>{ if(mi>0) html+=`<div style="position:absolute;left:${xo}px;top:0;bottom:0;width:1px;background:#e4e7f0;pointer-events:none"></div>`; xo+=mPx(m); });
+      months.forEach((m,mi)=>{ if(mi>0) row+=`<div style="position:absolute;left:${xo}px;top:0;bottom:0;width:2px;background:#d0d5e8;pointer-events:none;z-index:0"></div>`; xo+=mPx(m); });
 
-      // today
+      // Week lines in row
+      weekTicks.forEach(t => {
+        row += `<div style="position:absolute;left:${t.px}px;top:0;bottom:0;width:1px;background:#eef0f8;pointer-events:none;z-index:0"></div>`;
+      });
+
+      // Today line
       if(todayX>=0&&todayX<=teamW) {
-        html+=`<div style="position:absolute;left:${todayX}px;top:0;bottom:0;width:2px;background:#4f7ef8;opacity:.7;pointer-events:none;z-index:3"></div>`;
+        row += `<div style="position:absolute;left:${todayX}px;top:0;bottom:0;width:2px;background:#4f7ef8;opacity:.6;pointer-events:none;z-index:3"></div>`;
       }
 
-      // bars — draw using pre-calculated lanes
+      // Bars
       validE.forEach((e, ei) => {
         const li = laneIdx[ei];
-        if(li < 0) return;
-        const left = toPx(e.start);
-        const w    = wPx(e.start, e.end);
-        if(left > teamW) return;
-        const top  = 5 + li * LANE_H;
-        const d    = e.days || diff(pd(e.start), pd(e.end))+1;
-        const st   = STATUS_STYLE[e.status]||STATUS_STYLE['Cancellation Processed'];
-        const tip  = encodeURIComponent(JSON.stringify({name,email:emailKey,team:e.team,start:e.start,end:e.end,status:e.status,days:d}));
+        if(li<0) return;
+        const left=toPx(e.start), w=wPx(e.start,e.end);
+        if(left>teamW) return;
+        const top = 5+li*LANE_H;
+        const d   = e.days || diff(pd(e.start),pd(e.end))+1;
+        const st  = STATUS_STYLE[e.status]||STATUS_STYLE['Cancellation Processed'];
+        const tip = encodeURIComponent(JSON.stringify({name,email:emailKey,team:e.team,start:e.start,end:e.end,status:e.status,days:d}));
         const strike = st.strike?'text-decoration:line-through;':'';
-        html+=`<div
-          onmouseenter="showTip(event,'${tip}')"
-          onmouseleave="hideTip()"
+        row += `<div onmouseenter="showTip(event,'${tip}')" onmouseleave="hideTip()"
           style="position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${BAR_H}px;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:600;overflow:hidden;cursor:pointer;z-index:2;background:${st.bg};border:1.5px solid ${st.border};color:${st.color};${strike}"
         >${w>36?d+'d':''}</div>`;
       });
 
-      html+=`</td></tr>`;
+      row += `</td></tr>`;
+      return row;
+    };
+
+    // Render future agents first
+    futureAgents.forEach((emailKey, ai) => {
+      html += renderAgentRow(emailKey, ai===futureAgents.length-1 && pastAgents.length===0);
     });
-    html+=`</tbody></table></div></div></div>`;
+
+    // Past agents collapsed
+    if(pastAgents.length > 0) {
+      const btnId = 'past_'+team.replace(/\W/g,'_');
+      html += `<tr><td colspan="${months.length+1}" style="padding:0;border-top:1px solid #f0f2f8;">
+        <div class="past-row-btn" onclick="togglePast('${btnId}')">
+          <span id="${btnId}_icon">▶</span>
+          <span>${pastAgents.length} agent${pastAgents.length>1?'s':''} with no upcoming requests (click to expand)</span>
+        </div>
+      </td></tr>`;
+      html += `<tbody id="${btnId}" class="past-rows-container">`;
+      pastAgents.forEach((emailKey, ai) => {
+        html += renderAgentRow(emailKey, ai===pastAgents.length-1);
+      });
+      html += `</tbody>`;
+    }
+
+    html += `</tbody></table></div></div></div>`;
   });
 
   cont.innerHTML = html;
+}
+
+function togglePast(id) {
+  const el = document.getElementById(id);
+  const icon = document.getElementById(id+'_icon');
+  if(el.classList.contains('open')) {
+    el.classList.remove('open');
+    icon.textContent = '▶';
+  } else {
+    el.classList.add('open');
+    icon.textContent = '▼';
+  }
 }
 
 // ─── TOOLTIP ─────────────────────────────────────────────────────────────────
@@ -408,7 +500,6 @@ function hideTip() { tt.classList.remove('on'); }
 document.addEventListener('mousemove', e=>{ if(tt.classList.contains('on')) mv(e); });
 window.addEventListener('resize', ()=>{ if(DATA.length) render(); });
 
-// ─── AUTO REFRESH ─────────────────────────────────────────────────────────────
 loadData();
 setInterval(()=>loadData(true), AUTO_REFRESH_MINUTES * 60 * 1000);
 </script>
