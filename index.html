@@ -118,12 +118,10 @@
   <label>Agent</label>
   <input type="text" id="f-agent" placeholder="search…" oninput="render()" style="width:130px">
   <div class="sep"></div>
-  <label>View</label>
-  <select id="f-months" onchange="render()">
-    <option value="3">3 months</option>
-    <option value="6" selected>6 months</option>
-    <option value="12">Full year</option>
-  </select>
+  <label>From</label>
+  <input type="date" id="f-from" onchange="render()" style="width:130px">
+  <label>To</label>
+  <input type="date" id="f-to" onchange="render()" style="width:130px">
 </div>
 
 <div class="legend">
@@ -239,11 +237,12 @@ function render() {
     return;
   }
 
-  // Date range: from 1st of current month to TIMELINE_END (capped by view selector)
-  const vm = +document.getElementById('f-months').value;
+  // Date range: from pickers, defaulting to Jan 1 of current year → TIMELINE_END
   const today = new Date(); today.setHours(0,0,0,0);
-  const rS = new Date(today.getFullYear(), today.getMonth(), 1);
-  const rEraw = new Date(rS.getFullYear(), rS.getMonth()+vm, 0);
+  const fromInput = document.getElementById('f-from').value;
+  const toInput   = document.getElementById('f-to').value;
+  const rS = fromInput ? new Date(fromInput + 'T00:00:00') : new Date(today.getFullYear(), 0, 1);
+  const rEraw = toInput   ? new Date(toInput   + 'T00:00:00') : TIMELINE_END;
   const rE = TIMELINE_END < rEraw ? TIMELINE_END : rEraw;
   const totalDays = diff(rS, rE) + 1;
 
@@ -308,18 +307,9 @@ function render() {
     const agKeys = Object.keys(agMap).sort((a,b) =>
       (agMap[a][0].displayName||a).localeCompare(agMap[b][0].displayName||b));
 
-    // Separate agents with future entries vs only past entries
-    const futureAgents = [];
+    // Show all agents always
+    const futureAgents = agKeys;
     const pastAgents   = [];
-    agKeys.forEach(emailKey => {
-      const entries = agMap[emailKey];
-      const hasFuture = entries.some(e => {
-        const ds = pd(e.start);
-        return ds && ds >= rS;
-      });
-      if(hasFuture) futureAgents.push(emailKey);
-      else pastAgents.push(emailKey);
-    });
 
     html += `<div class="team-block">
       <div class="team-label">
@@ -372,7 +362,7 @@ function render() {
       const LANE_H=22, BAR_H=18;
       const statusOrder={'Confirmed':0,'Waitlist':1,'Cancelled':2,'Cancellation Processed':3};
       const validE = entries
-        .filter(e => { const ds=pd(e.start),de=pd(e.end); return ds&&de&&de>=rS&&ds<=TIMELINE_END; })
+        .filter(e => { const ds=pd(e.start),de=pd(e.end); return ds&&de&&de>=rS&&ds<=rE; })
         .sort((a,b)=>(statusOrder[a.status]||0)-(statusOrder[b.status]||0));
 
       const lanesArr=[];
@@ -499,6 +489,17 @@ function mv(e) {
 function hideTip() { tt.classList.remove('on'); }
 document.addEventListener('mousemove', e=>{ if(tt.classList.contains('on')) mv(e); });
 window.addEventListener('resize', ()=>{ if(DATA.length) render(); });
+
+// Set default date range: Jan 1 of current year → TIMELINE_END
+(function() {
+  const today = new Date();
+  const fromDefault = today.getFullYear() + '-01-01';
+  const toDefault   = TIMELINE_END.getFullYear() + '-' +
+    String(TIMELINE_END.getMonth()+1).padStart(2,'0') + '-' +
+    String(TIMELINE_END.getDate()).padStart(2,'0');
+  document.getElementById('f-from').value = fromDefault;
+  document.getElementById('f-to').value   = toDefault;
+})();
 
 loadData();
 setInterval(()=>loadData(true), AUTO_REFRESH_MINUTES * 60 * 1000);
