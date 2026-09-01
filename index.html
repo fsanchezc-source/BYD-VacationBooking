@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vacation Timeline</title>
+<title>Vacation Planner</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -450,6 +450,16 @@ function render() {
   });
 
   cont.innerHTML = html;
+
+  // Scroll each timeline to today after render
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.tl-scroll').forEach(el => {
+      // todayX is relative to the start of the timeline area
+      // LW (label column) is 190px, subtract a bit so today isn't at the very edge
+      const scrollTo = todayX - 200;
+      el.scrollLeft = Math.max(0, scrollTo);
+    });
+  });
 }
 
 function togglePast(id) {
